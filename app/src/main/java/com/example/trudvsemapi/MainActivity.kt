@@ -4,10 +4,9 @@ import android.os.Bundle
 import android.util.Log
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.trudvsemapi.databinding.ActivityMainBinding
+import com.example.trudvsemapi.retrofit.CompanyContact
 import com.example.trudvsemapi.retrofit.TrudVsemApiService
 import com.example.trudvsemapi.retrofit.VacanciesResponse
 import retrofit2.Call
@@ -18,7 +17,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 
 class MainActivity : AppCompatActivity() {
     lateinit var binding: ActivityMainBinding
-    private val companyList = mutableListOf<String>()
+    private val companyContacts = mutableListOf<CompanyContact>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -26,15 +25,11 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
         binding.rcView.layoutManager = LinearLayoutManager(this)
-        val adapter = CompanyAdapter(companyList)
+        val adapter = CompanyAdapter(companyContacts)
         binding.rcView.adapter = adapter
 
-// Вызов метода для получения данных
         fetchVacancies()
 
-        binding.btnGet.setOnClickListener{
-            adapter.notifyDataSetChanged()
-        }
     }
 
     object RetrofitInstance {
@@ -53,16 +48,23 @@ class MainActivity : AppCompatActivity() {
         call.enqueue(object : Callback<VacanciesResponse> {
             override fun onResponse(call: Call<VacanciesResponse>, response: Response<VacanciesResponse>) {
                 if (response.isSuccessful) {
-// Получаем список вакансий
                     response.body()?.let { vacanciesResponse ->
                         vacanciesResponse.results.vacancies.forEach { vacancy ->
-                            vacancy.details.company.name?.let { companyName -> companyList.add(companyName)
-                                    Log.d(
-                                    "Company Name",
-                                    companyName
-                                ) // Выводим название вакансии в лог
+                            val companyName = vacancy.details.company.name
+                            var phone: String? = null
+                            var email: String? = null
+
+                            vacancy.details.contactList.forEach { contact ->
+                                when (contact.contactType) {
+                                    "Телефон" -> phone = contact.contactValue
+                                    "Эл. почта" -> email = contact.contactValue
+                                }
                             }
+
+                            companyContacts.add(CompanyContact(companyName, phone, email))
                         }
+
+                        binding.rcView.adapter?.notifyDataSetChanged()
                     }
                 }
             }
@@ -72,4 +74,5 @@ class MainActivity : AppCompatActivity() {
             }
         })
     }
+
 }
